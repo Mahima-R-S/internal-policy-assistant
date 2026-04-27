@@ -1,0 +1,9 @@
+streamlit
+chromadb
+PyPDF2
+langchain-text-splitters
+python-dotenv
+google-generativeai
+groq
+rouge-score
+textstat

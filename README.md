@@ -1,108 +1,63 @@
-# 🎓 Adaptive AI Tutor
+# Internal Policy Assistant
 
-Adaptive AI Tutor is a premium, AI-powered learning platform designed to help students master their study materials through intelligent retrieval, multi-model analysis, and interactive assessments. This project leverages the latest LLM technologies (Gemini, LLaMA, Qwen) to provide a comparative and grounded learning experience.
+A question-answering system over internal policy documents. It answers only from the uploaded PDFs, cites the source page for each claim, and says "not in notes" when the documents don't cover the question.
 
----
+## How it works
 
-## 🚀 Key Features
+1. **Ingest:** PDFs are read page by page, split into chunks, and stored in ChromaDB with source file and page number.
+2. **Retrieve:** The top matching chunks are fetched for each question.
+3. **Generate:** A Groq-hosted LLaMA 3.3 model answers using only those chunks, with citations.
+4. **Evaluate:** A test set with known answers measures retrieval, abstention, correctness, and faithfulness.
 
-### 📖 Intelligent Study Mode (RAG)
-*   **Knowledge Ingestion:** Upload any PDF study material. The system automatically processes, chunks, and indexes the content for instant retrieval.
-*   **Contextual Q&A:** Ask questions directly about your documents. The tutor uses Retrieval-Augmented Generation (RAG) to ensure answers are based on your specific material.
-*   **Multi-Model Comparison:** View and compare answers from three different state-of-the-art LLMs:
-    *   **Google Gemini 3.0 Flash**
-    *   **LLaMA 3.1 (8B)**
-    *   **Qwen 3 (32B)**
+## Setup
 
-### 📊 Performance Metrics Dashboard
-Every AI response is evaluated in real-time across critical dimensions to ensure accuracy and clarity.
-
-#### How Metrics are Calculated:
-*   **Groundedness (Word Overlap):** A custom algorithm that extracts unique keywords (length ≥ 5) from the response and checks their presence in the retrieved context. It represents the percentage of key terms in the answer that are explicitly found in the source material.
-*   **Readability (Flesch Ease):** Calculated using the `textstat` library. It analyzes sentence length and syllable count to provide a score from 0-100. Higher scores indicate content that is easier to read and understand.
-*   **ROUGE-L Score:** A standard NLP metric that measures the longest common subsequence between the AI response and the source context. It evaluates how much of the original document's phrasing or structure is preserved.
-*   **AI Fact-Check Score:** A high-level evaluation performed by a dedicated **LLaMA 3.1 8B Agent**. The agent cross-references factual claims in the answer against the context to detect hallucinations, returning a score from 0 (hallucinated) to 1 (fully grounded).
-*   **Latency:** The total round-trip time (in seconds) from the moment the query is sent to the API until the final response is received and processed.
-
-### 📝 Practice Zone
-*   **Dynamic MCQ Generation:** Automatically creates customized Multiple Choice Questions (MCQs) based on the key concepts in your document.
-*   **Self-Assessment:** Includes an expandable answer key for instant feedback on your knowledge.
-
----
-
-## 🛠️ How It Works
-
-### 1. Ingestion Pipeline (`utils/rag_engine.py`)
-*   **Extraction:** Uses `PyPDF2` to read text from uploaded files.
-*   **Chunking:** Employs `RecursiveCharacterTextSplitter` from LangChain to divide text into semantic blocks (1000 characters with 100-character overlap).
-*   **Vectorization:** Processes chunks into embeddings and stores them in **ChromaDB**, a persistent vector database.
-
-### 2. Retrieval Mechanism
-*   When a user asks a question, the system performs a semantic search in ChromaDB to find the most relevant document sections (Top-K retrieval).
-
-### 3. Execution & Evaluation (`llm/comparator.py` & `utils/scorer.py`)
-*   The retrieved context is injected into a specialized prompt.
-*   Three models are queried in parallel via **Gemini** and **Groq** APIs.
-*   Each response is passed through the scoring engine to calculate metrics and the fact-check score.
-
----
-
-## 💻 Tech Stack
-
-*   **Frontend:** Streamlit (Custom CSS for Premium UI)
-*   **Vector Database:** ChromaDB
-*   **Orchestration:** LangChain (Text Splitting)
-*   **LLMs:** Google Gemini 3.0, Meta LLaMA 3.1, Alibaba Qwen 3
-*   **API Gateways:** Google AI Studio, Groq Cloud
-
----
-
-## ⚙️ Setup & Installation
-
-### 1. Clone the repository
-```bash
-git clone <repository-url>
-cd mini_project
-```
-
-### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
-Create a `.env` file in the root directory and add your API keys:
-```env
-GROQ_API_KEY=your_groq_api_key_here
-GEMINI_API_KEY=your_gemini_api_key_here
+Create a `.env` file in the project root:
+
+```
+GROQ_API_KEY=your_key_here
 ```
 
-### 4. Run the Application
+## Usage
+
+Generate the test document and run the app:
+
 ```bash
+python make_test_pdf.py
 streamlit run app.py
 ```
 
----
+Run the evaluation:
 
-## 📁 Project Structure
-
-```text
-├── app.py                # Main Streamlit Application
-├── .env                  # Environment Variables (API Keys)
-├── requirements.txt      # Project Dependencies
-├── chroma_db/            # Persistent Vector Database storage
-├── llm/
-│   ├── gemini_client.py   # Google Gemini API Interface
-│   ├── groq_client.py     # Groq API Interface (LLaMA/Qwen)
-│   ├── comparator.py      # Multi-model query & comparison logic
-│   ├── mcq_generator.py   # AI Quiz generation logic
-│   └── evaluator.py       # (Optional) Model evaluation utilities
-└── utils/
-    ├── rag_engine.py      # PDF processing and ChromaDB logic
-    └── scorer.py          # Metric calculations (ROUGE, Readability, Fact-Check)
+```bash
+python eval/run_repeat.py
 ```
 
----
+## Evaluation
+
+The test set has 18 questions over a fictional document: direct, multi-hop, conflicting-source, and unanswerable cases. Each answerable question is run three times.
+
+Results on this pilot set:
+- Retrieval hit rate was high, but the test document has only 4 chunks, so this is a weak test.
+- Abstention was correct on all unanswerable runs. These questions have little overlap with the document, so they are an easy case.
+- Faithfulness is judged by a model from a different family than the generator. One multi-hop question consistently scored 0.8, which is still unexplained.
+- Correctness uses keyword matching, which is loose and has not been checked by hand.
+
+## Limitations
+
+- Small pilot document and question set.
+- No human review of answers yet.
+- No access control or per-user permissions.
+- Runs through a hosted API, so document text is sent to Groq.
+
+## Next steps
+
+- Test on a larger document set with more chunks.
+- Add harder abstention questions that overlap the document's wording.
+- Hand-label a sample of answers to check the keyword correctness.
 
 ## 🌟 Premium Aesthetics
 The application features a modern "Glassmorphism" inspired design with:

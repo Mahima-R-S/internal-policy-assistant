@@ -1,13 +1,12 @@
-# test.py
-from llm.comparator import compare_llm_responses
+from utils.rag_engine import ingest_pdf, retrieve
+from llm.generator import generate_answer
 
-rag_context = "Photosynthesis is the process where plants convert light energy into chemical energy."
+ok, msg = ingest_pdf("marine_sensing_notes.pdf")
+print(msg)
 
-question = "What is photosynthesis?"
+q = "What is the standard sampling rate of a Veyra probe?"
+for c in retrieve(q):
+    print(c["page"], round(c["distance"], 3), c["text"][:80])
 
-results = compare_llm_responses(question, rag_context)
-
-for r in results:
-    print(f"\n{r['model']}")
-    print(f"Response: {r['response'][:100]}...")
-    print(f"Metrics: {r['metrics']}")
+answer, err = generate_answer(q, retrieve(q))
+print("\nANSWER:", answer or err)

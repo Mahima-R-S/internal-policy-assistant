@@ -1,9 +1,9 @@
 streamlit
 chromadb
-PyPDF2
+pypdf
 langchain-text-splitters
 python-dotenv
-google-generativeai
 groq
 rouge-score
 textstat
+reportlab
